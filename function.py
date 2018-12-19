@@ -2,6 +2,8 @@ import numpy as np
 import scipy.optimize as opt
 import support
 import math
+import random
+
 
 class NormMethods:
 
@@ -124,6 +126,34 @@ class WirtingerFlow:
             if self.active:
                 active_set = self.get_active_set(x)
             x = self.update_x(active_set, x)
+            error = support.check_error(self.A, x, self.xstar, self.m)
+            err_arr.append(error)
+        return err_arr
+
+
+class Kaczmarc:
+    def __init__(self, n, m, niter, A, xstar, x0, psi):
+        self.niter = niter
+        self.n = n
+        self.m = m
+        self.A = A
+        self.xstar = xstar
+        self.x0 = x0
+        self.psi = psi
+        self.L = np.linalg.norm(self.A)
+
+    def update_x(self, x):
+        i = random.randint(0, self.m-1)
+        s = np.dot( np.eye(self.n) - ( (1./ np.linalg.norm(self.A[i])**2)*(np.abs( np.dot(self.A[i], x) ) - self.psi[i]) / np.abs( np.dot(self.A[i], x) ) ) * np.outer(self.A[i], self.A[i]), x)
+        return s
+
+    def run_iter(self):
+        trial = 0
+        err_arr = []
+        x = self.x0
+        while trial < self.niter:
+            trial += 1
+            x = self.update_x(x)
             error = support.check_error(self.A, x, self.xstar, self.m)
             err_arr.append(error)
         return err_arr
