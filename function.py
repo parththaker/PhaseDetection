@@ -17,14 +17,15 @@ class NormMethods:
         self.psi = psi
         self.L = np.linalg.norm(self.A)
 
-    def run_iter(self, err_bound, order):
+    def run_iter(self, err_bound, order, inc=0):
         trial = 0
         err_arr = []
         x_old = self.x0
         x = self.x0
         while trial < self.niter:
             trial += 1
-            sol = opt.minimize(self.func, x, args=(x_old, order), method='nelder-mead',
+            index = random.randint(0, self.m - 1)
+            sol = opt.minimize(self.func, x, args=(x_old, order, inc, index), method='nelder-mead',
                                options={'xtol': err_bound, 'disp': True})
             x_old = x
             x = sol.x
@@ -32,9 +33,13 @@ class NormMethods:
             err_arr.append(error)
         return err_arr
 
-    def func(self, x, z, order=2):
+    def func(self, x, z, order=2, inc=0, index =0):
         g = np.zeros(self.m)
-        for i in range(self.m):
+        if not inc:
+            for i in range(self.m):
+                g[i] = np.abs(np.dot(self.A[i], z) ** 2 + 2 * np.dot(self.A[i], z) * np.dot(self.A[i], x - z) - self.psi[i] ** 2)
+        else:
+            i = index
             g[i] = np.abs(np.dot(self.A[i], z) ** 2 + 2 * np.dot(self.A[i], z) * np.dot(self.A[i], x - z) - self.psi[i] ** 2)
         f = np.linalg.norm(g, ord=order)
         f += (self.L / 2.) * (np.linalg.norm(x - z) ** 2)
