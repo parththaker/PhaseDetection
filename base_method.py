@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import function
 import support
 
-niter = 100
+niter = 500
 error_bound = 1e-6
 n=5
 m=100
@@ -16,6 +16,10 @@ twf = function.WirtingerFlow(n, m, niter, A, x_star, x_0, psi)
 stwf = function.SAGWirtingerFlow(n, m, niter, A, x_star, x_0, psi)
 staf = function.SAGAmplitudeFlow(n, m, niter, A, x_star, x_0, psi)
 kz = function.Kaczmarc(n, m, niter, A, x_star, x_0, psi)
+expmethod = function.ExpNormMethods(n, m, niter, A, x_star, x_0, psi)
+sagexp = function.SAGExpNormMethods(n, m, niter, A, x_star, x_0, psi)
+sagnorm = function.SAGNormMethods(n, m, niter, A, x_star, x_0, psi)
+
 
 l1_arr = norm_method.run_iter(error_bound, order = 1)
 l1_inc_arr = norm_method.run_iter(error_bound, order = 1, inc=1)
@@ -33,11 +37,13 @@ sag_wf_arr = stwf.run_iter(active=0)
 sag_taf_arr = staf.run_iter(active=1)
 sag_af_arr = staf.run_iter(active=0)
 kz_arr = kz.run_iter()
+exp_arr = expmethod.run_iter()
+exp_sag_arr = sagexp.run_iter()
+sag_norm_arr = sagnorm.run_iter()
 
 plt.figure(1)
 plt.semilogy(range(niter), af_arr, label='AF')
 plt.semilogy(range(niter), wf_arr, label='WF')
-
 
 plt.semilogy(range(niter), taf_arr, label='TAF')
 plt.semilogy(range(niter), twf_arr, label='TWF')
@@ -59,6 +65,10 @@ plt.semilogy(range(niter), linf_arr, label='Prox. linf')
 
 plt.semilogy(range(niter), l1_inc_arr, label='Prox. Inc. l1')
 plt.semilogy(range(niter), l2_inc_arr, label='Prox. Inc. l2')
+
+plt.semilogy(range(niter), exp_arr, label='Exp')
+plt.semilogy(range(niter), exp_sag_arr, label='SAG Exp')
+plt.semilogy(range(niter), sag_norm_arr, label='SAG Exp')
 
 plt.xlabel('Iterate no.')
 plt.ylabel(r'$\sum_{i=1}^m||a_i^Tx - \psi_i||$')

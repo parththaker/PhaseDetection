@@ -283,3 +283,149 @@ class SAGAmplitudeFlow:
             error = support.check_error(self.A, x, self.xstar, self.m)
             err_arr.append(error)
         return err_arr
+
+
+class ExpNormMethods:
+
+    def __init__(self, n, m, niter, A, xstar, x0, psi):
+        self.niter = niter
+        self.n = n
+        self.m = m
+        self.A = A
+        self.xstar = xstar
+        self.x0 = x0
+        self.psi = psi
+        self.xold = x0
+        self.L = np.linalg.norm(self.A)
+
+    def run_iter(self):
+        trial = 0
+        err_arr = []
+        x = self.x0
+        while trial < self.niter:
+            trial += 1
+            x = self.update_x(x)
+            error = support.check_error(self.A, x, self.xstar, self.m)
+            err_arr.append(error)
+        return err_arr
+
+    def update_x(self, x):
+        s = (self.L)*np.eye(self.n)
+        g = 0.0
+        for i in range(self.m):
+            grad = np.dot(np.outer(self.A[i], self.A[i]), x)
+            s += (2.0/self.n)*(np.outer(grad, grad))
+            g += (2/self.n)*(np.dot(self.A[i], x)**2 - self.psi[i]**2)*grad
+        return x - np.dot(np.linalg.inv(s), g)
+
+
+class SAGExpNormMethods:
+
+    def __init__(self, n, m, niter, A, xstar, x0, psi):
+        self.niter = niter
+        self.n = n
+        self.m = m
+        self.A = A
+        self.xstar = xstar
+        self.x0 = x0
+        self.psi = psi
+        self.xold = x0
+        self.L = np.linalg.norm(self.A)
+
+    def run_iter(self):
+        trial = 0
+        err_arr = []
+        x = self.x0
+        self.xold = self.x0
+        while trial < self.niter:
+            trial += 1
+            xold = x
+            x = self.update_x(x)
+            self.xold = xold
+            error = support.check_error(self.A, x, self.xstar, self.m)
+            err_arr.append(error)
+        return err_arr
+
+    def compute_old_gradient(self):
+        s = (self.L)*np.eye(self.n)
+        g = 0.0
+        for i in range(self.m):
+            grad = np.dot(np.outer(self.A[i], self.A[i]), self.xold)
+            s += (2.0/self.n)*(np.outer(grad, grad))
+            g += (2.0/self.n)*(np.dot(self.A[i], self.xold)**2 - self.psi[i]**2)*grad
+        return np.dot(np.linalg.inv(s), g)
+
+    def update_x(self, x):
+        i = np.random.choice(range(self.m))
+        grad = np.dot(np.outer(self.A[i], self.A[i]), x)
+        s = (self.L)*np.eye(self.n) + 2.0*(np.outer(grad, grad))
+        g = 2*(np.dot(self.A[i], x)**2 - self.psi[i]**2)*grad
+
+        grad_old = np.dot(np.outer(self.A[i], self.A[i]), self.xold)
+        s_old = (self.L)*np.eye(self.n) + 2.0*(np.outer(grad_old, grad_old))
+        g_old = 2*(np.dot(self.A[i], self.xold)**2 - self.psi[i]**2)*grad_old
+
+        return x - 0.4*(np.dot(np.linalg.inv(s), g) - np.dot(np.linalg.inv(s_old), g_old) + self.compute_old_gradient())
+
+class SAGNormMethods:
+
+    def __init__(self, n, m, niter, A, xstar, x0, psi):
+        self.niter = niter
+        self.n = n
+        self.m = m
+        self.A = A
+        self.xstar = xstar
+        self.x0 = x0
+        self.psi = psi
+        self.xold = self.x0
+        self.L = np.linalg.norm(self.A)
+
+    def run_iter(self):
+        trial = 0
+        err_arr = []
+        x_old = self.x0
+        x = self.x0
+        while trial < self.niter:
+            trial += 1
+            xold = x
+            x = self.update_x(x)
+            self.xold = xold
+            error = support.check_error(self.A, x, self.xstar, self.m)
+            err_arr.append(error)
+        return err_arr
+
+    def compute_old_gradient(self):
+        s = 0.0
+        for i in range(self.m):
+            if np.dot(self.A[i], self.xold)**2 - self.psi[i]**2 < -4*(np.dot(self.A[i], self.xold)**2)*np.linalg.norm(self.A[i])**2:
+                s += 2*(self.L)*np.dot(self.A[i], self.xold)*self.A[i]
+            elif np.dot(self.A[i], self.xold)**2 - self.psi[i]**2 > 4*(np.dot(self.A[i], self.xold)**2)*np.linalg.norm(self.A[i])**2:
+                s -= 2 * (self.L) * np.dot(self.A[i], self.xold) * self.A[i]
+            else:
+                s += ((np.dot(self.A[i], self.xold)**2 - self.psi[i]**2)/(4*(np.dot(self.A[i], self.xold)**2)*np.linalg.norm(self.A[i])**2))*2 * (self.L) * np.dot(self.A[i], self.xold) * self.A[i]
+        return (1./self.m)*s
+
+    def update_x(self, x):
+        i = np.random.choice(range(self.m))
+        if np.dot(self.A[i], self.xold) ** 2 - self.psi[i] ** 2 < -4 * (
+                np.dot(self.A[i], self.xold) ** 2) * np.linalg.norm(self.A[i]) ** 2:
+            sold = 2 * (self.L) * np.dot(self.A[i], self.xold) * self.A[i]
+        elif np.dot(self.A[i], self.xold) ** 2 - self.psi[i] ** 2 > 4 * (
+                np.dot(self.A[i], self.xold) ** 2) * np.linalg.norm(self.A[i]) ** 2:
+            sold = - 2 * (self.L) * np.dot(self.A[i], self.xold) * self.A[i]
+        else:
+            sold = ((np.dot(self.A[i], self.xold) ** 2 - self.psi[i] ** 2) / (
+                        4 * (np.dot(self.A[i], self.xold) ** 2) * np.linalg.norm(self.A[i]) ** 2)) * 2 * (
+                     self.L) * np.dot(self.A[i], self.xold) * self.A[i]
+
+        if np.dot(self.A[i], x) ** 2 - self.psi[i] ** 2 < -4 * (
+                np.dot(self.A[i], x) ** 2) * np.linalg.norm(self.A[i]) ** 2:
+            snew = 2 * (self.L) * np.dot(self.A[i], x) * self.A[i]
+        elif np.dot(self.A[i], x) ** 2 - self.psi[i] ** 2 > 4 * (
+                np.dot(self.A[i], x) ** 2) * np.linalg.norm(self.A[i]) ** 2:
+            snew = - 2 * (self.L) * np.dot(self.A[i], x) * self.A[i]
+        else:
+            snew = ((np.dot(self.A[i], x) ** 2 - self.psi[i] ** 2) / (
+                        4 * (np.dot(self.A[i], x) ** 2) * np.linalg.norm(self.A[i]) ** 2)) * 2 * (
+                     self.L) * np.dot(self.A[i], x) * self.A[i]
+        return x - 0.1*(snew-sold +self.compute_old_gradient())
