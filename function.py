@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.optimize as opt
 import support
-
+import math
 
 class NormMethods:
 
@@ -63,14 +63,64 @@ class AmplitudeFlow:
             s += (np.dot(self.A[i], x) - self.psi[i] * (np.dot(self.A[i], x) / np.abs(np.dot(self.A[i], x)))) * self.A[i]
         return x - (1. * self.alpha / self.m) * s
 
-    def run_iter(self, active = 1):
+    def run_iter(self, active=1):
         self.active = active
         trial = 0
         err_arr = []
         x = self.x0
         while trial < self.niter:
             trial += 1
-            active_set = range[self.m]
+            active_set = range(self.m)
+            if self.active:
+                active_set = self.get_active_set(x)
+            x = self.update_x(active_set, x)
+            error = support.check_error(self.A, x, self.xstar, self.m)
+            err_arr.append(error)
+        return err_arr
+
+
+class WirtingerFlow:
+
+    def __init__(self, n, m, niter, A, xstar, x0, psi):
+        self.niter = niter
+        self.n = n
+        self.m = m
+        self.alpha_h = 5.0
+        self.alpha_y = 3.0
+        self.alpha_lb = 0.3
+        self.alpha_ub = 5.0
+        self.mu = 0.3
+        self.A = A
+        self.xstar = xstar
+        self.x0 = x0
+        self.active = 1
+        self.psi = psi
+        self.L = np.linalg.norm(self.A)
+
+    def get_active_set(self, x):
+        angles = [math.sqrt(self.n)*np.abs(np.dot(self.A[i], x))/np.linalg.norm(self.A[i])/np.linalg.norm(x) for i in range(self.m)]
+        violations = [np.abs(self.psi[i]**2 - np.dot(self.A[i], x)**2) for i in range(self.m)]
+
+        h = []
+        for i in range(self.m):
+            if self.alpha_lb <= angles[i] <= self.alpha_ub and violations[i] <= self.alpha_h*(sum(violations)/self.m)*angles[i]:
+                h.append(i)
+        return h
+
+    def update_x(self, active_set, x):
+        s = 0.0
+        for i in active_set:
+            s += ( ( self.psi[i]**2 - np.dot(self.A[i], x)**2 ) / np.dot(self.A[i], x) ) * self.A[i]
+        return x + (2*self.mu/self.m) * s
+
+    def run_iter(self, active=1):
+        self.active = active
+        trial = 0
+        err_arr = []
+        x = self.x0
+        while trial < self.niter:
+            trial += 1
+            active_set = range(self.m)
             if self.active:
                 active_set = self.get_active_set(x)
             x = self.update_x(active_set, x)
